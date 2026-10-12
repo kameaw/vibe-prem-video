@@ -18,6 +18,8 @@ MainWindow::MainWindow(QWidget* parent)
 {
     setWindowTitle(QStringLiteral("vibe-prem-video"));
     resize(1440, 900);
+    setDockNestingEnabled(true);
+    setDockOptions(AnimatedDocks | AllowNestedDocks | AllowTabbedDocks);
 
     auto* center = new QWidget(this);
     auto* centerLayout = new QVBoxLayout(center);

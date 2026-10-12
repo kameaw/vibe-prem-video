@@ -4,13 +4,8 @@ Windows non-linear video editor (Premiere-like) built for self-education.
 
 **Stack:** C++20 · Qt 6 · FFmpeg · CMake · MSVC · Direct3D 11 (later)
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for timebase and threading rules.
-
-## Phase 0 status
-
-- Dock shell: Project Bin, Source Monitor, Program Monitor, Timeline, Effect Controls
-- Dark theme + menus
-- FFmpeg media probe via **File → Open Media…**
+See [ARCHITECTURE.md](ARCHITECTURE.md) for timebase and threading rules.  
+Track stages in [ROADMAP.md](ROADMAP.md).
 
 ## Installed toolchain (this machine)
 
