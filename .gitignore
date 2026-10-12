@@ -1,0 +1,105 @@
+# Build
+build/
+build-*/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+install_manifest.txt
+*.user
+*.user.*
+
+# MSVC / Visual Studio
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+ipch/
+x64/
+x86/
+Win32/
+[Dd]ebug/
+[Rr]elease/
+[Rr]elWithDebInfo/
+[Mm]inSizeRel/
+
+# Qt
+*.qmlc
+*.jsc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*_autogen/
+.qmake.stash
+*.pro.user
+*.pro.user.*
+*_qmlcache.qrc
+
+# Compiled / binaries
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.pdb
+*.ilk
+*.exp
+*.idb
+*.pch
+*.gch
+
+# Packages / deps (local)
+third_party/ffmpeg/
+vcpkg_installed/
+.vcpkg-root
+
+# IDE / editors
+.idea/
+.vscode/
+*.code-workspace
+*.swp
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Cursor (local)
+.cursor/
+
+# Media / cache (local working files)
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.wav
+*.aiff
+*.prores
+cache/
+proxies/
+autosave/
+*.autosave
+
+# Logs / temp
+*.log
+*.tmp
+*.temp
+*.bak
+
+# Env / secrets
+.env
+.env.*
+*.pem
