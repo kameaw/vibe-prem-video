@@ -13,13 +13,33 @@ extern "C" {
 #endif
 
 namespace vibe {
+namespace {
+
+#if VIBE_HAS_FFMPEG
+Rational toRational(AVRational r)
+{
+    if (r.num <= 0 || r.den <= 0) {
+        return {};
+    }
+    return Rational{r.num, r.den};
+}
+
+QString ffmpegError(int err)
+{
+    char buf[AV_ERROR_MAX_STRING_SIZE] = {};
+    av_strerror(err, buf, sizeof(buf));
+    return QString::fromUtf8(buf);
+}
+#endif
+
+} // namespace
 
 MediaProbeResult MediaProbe::probe(const QString& path)
 {
     MediaProbeResult result;
-    const QFileInfo info(path);
+    const QFileInfo fileInfo(path);
 
-    if (!info.exists() || !info.isFile()) {
+    if (!fileInfo.exists() || !fileInfo.isFile()) {
         result.summary = QStringLiteral("File not found: %1").arg(path);
         return result;
     }
@@ -31,8 +51,8 @@ MediaProbeResult MediaProbe::probe(const QString& path)
                         "Path: %1\nSize: %2 bytes\n\n"
                         "Install a Windows FFmpeg shared build and configure with:\n"
                         "  cmake -DFFMPEG_ROOT=C:/path/to/ffmpeg ...")
-                        .arg(info.absoluteFilePath())
-                        .arg(info.size());
+                        .arg(fileInfo.absoluteFilePath())
+                        .arg(fileInfo.size());
     return result;
 #else
     AVFormatContext* fmt = nullptr;
@@ -40,9 +60,7 @@ MediaProbeResult MediaProbe::probe(const QString& path)
 
     const int openRc = avformat_open_input(&fmt, utf8.constData(), nullptr, nullptr);
     if (openRc < 0) {
-        char err[AV_ERROR_MAX_STRING_SIZE] = {};
-        av_strerror(openRc, err, sizeof(err));
-        result.summary = QStringLiteral("avformat_open_input failed: %1").arg(QString::fromUtf8(err));
+        result.summary = QStringLiteral("avformat_open_input failed: %1").arg(ffmpegError(openRc));
         return result;
     }
 
@@ -52,40 +70,58 @@ MediaProbeResult MediaProbe::probe(const QString& path)
         return result;
     }
 
-    const unsigned streamCount = fmt->nb_streams;
-    const double durationSec =
-        (fmt->duration > 0) ? static_cast<double>(fmt->duration) / AV_TIME_BASE : 0.0;
+    MediaInfo& info = result.info;
+    info.path = fileInfo.absoluteFilePath();
+    info.fileName = fileInfo.fileName();
+    info.formatName = QString::fromUtf8(fmt->iformat ? fmt->iformat->name : "?");
+    info.durationUs = (fmt->duration > 0) ? fmt->duration : 0;
 
     QStringList lines;
-    lines << QStringLiteral("File: %1").arg(info.fileName());
-    lines << QStringLiteral("Format: %1").arg(QString::fromUtf8(fmt->iformat ? fmt->iformat->name : "?"));
-    lines << QStringLiteral("Duration: %1 s").arg(durationSec, 0, 'f', 3);
-    lines << QStringLiteral("Streams: %1").arg(streamCount);
+    lines << QStringLiteral("File: %1").arg(info.fileName);
+    lines << QStringLiteral("Format: %1").arg(info.formatName);
+    lines << QStringLiteral("Duration: %1 s").arg(info.durationSeconds(), 0, 'f', 3);
+    lines << QStringLiteral("Streams: %1").arg(fmt->nb_streams);
     lines << QString();
 
-    for (unsigned i = 0; i < streamCount; ++i) {
+    info.streams.resize(static_cast<int>(fmt->nb_streams));
+    for (unsigned i = 0; i < fmt->nb_streams; ++i) {
         const AVStream* st = fmt->streams[i];
         const AVCodecParameters* par = st->codecpar;
-        const char* typeName = av_get_media_type_string(par->codec_type);
-        const AVCodec* codec = avcodec_find_decoder(par->codec_id);
-        const char* codecName = codec ? codec->name : "unknown";
+        StreamInfo& stream = info.streams[static_cast<int>(i)];
+        stream.index = static_cast<int>(i);
 
+        const AVCodec* codec = avcodec_find_decoder(par->codec_id);
+        stream.codecName = QString::fromUtf8(codec ? codec->name : "unknown");
+
+        const char* typeName = av_get_media_type_string(par->codec_type);
         QString line = QStringLiteral("#%1 %2 codec=%3")
                            .arg(i)
                            .arg(QString::fromUtf8(typeName ? typeName : "?"))
-                           .arg(QString::fromUtf8(codecName));
+                           .arg(stream.codecName);
 
         if (par->codec_type == AVMEDIA_TYPE_VIDEO) {
+            stream.type = StreamInfo::Type::Video;
+            stream.width = par->width;
+            stream.height = par->height;
             const AVRational rate = st->avg_frame_rate.num > 0 ? st->avg_frame_rate : st->r_frame_rate;
-            const double fps = (rate.den > 0) ? av_q2d(rate) : 0.0;
+            stream.frameRate = toRational(rate);
+            if (info.videoStreamIndex < 0) {
+                info.videoStreamIndex = static_cast<int>(i);
+            }
             line += QStringLiteral(" %1x%2 @ %3 fps")
-                        .arg(par->width)
-                        .arg(par->height)
-                        .arg(fps, 0, 'f', 3);
+                        .arg(stream.width)
+                        .arg(stream.height)
+                        .arg(stream.frameRate.toDouble(), 0, 'f', 3);
         } else if (par->codec_type == AVMEDIA_TYPE_AUDIO) {
-            line += QStringLiteral(" %1 Hz, %2 ch")
-                        .arg(par->sample_rate)
-                        .arg(par->ch_layout.nb_channels);
+            stream.type = StreamInfo::Type::Audio;
+            stream.sampleRate = par->sample_rate;
+            stream.channels = par->ch_layout.nb_channels;
+            if (info.audioStreamIndex < 0) {
+                info.audioStreamIndex = static_cast<int>(i);
+            }
+            line += QStringLiteral(" %1 Hz, %2 ch").arg(stream.sampleRate).arg(stream.channels);
+        } else {
+            stream.type = StreamInfo::Type::Other;
         }
 
         lines << line;
@@ -94,11 +130,9 @@ MediaProbeResult MediaProbe::probe(const QString& path)
     avformat_close_input(&fmt);
 
     result.ok = true;
-    result.summary = QStringLiteral("Probed %1 (%2 streams, %3 s)")
-                         .arg(info.fileName())
-                         .arg(streamCount)
-                         .arg(durationSec, 0, 'f', 2);
+    result.summary = info.summary();
     result.detail = lines.join(QLatin1Char('\n'));
+    result.info = info;
     return result;
 #endif
 }

@@ -2,6 +2,7 @@
 
 #include "media/MediaProbe.h"
 #include "ui/PlaceholderDock.h"
+#include "ui/SourceMonitorWidget.h"
 
 #include <QFileDialog>
 #include <QKeySequence>
@@ -25,7 +26,7 @@ MainWindow::MainWindow(QWidget* parent)
     auto* centerLayout = new QVBoxLayout(center);
     centerLayout->setContentsMargins(0, 0, 0, 0);
     auto* hint = new QLabel(
-        QStringLiteral("Phase 0 — dock shell. Open a media file to run FFmpeg probe."),
+        QStringLiteral("Phase 1 — open a media file into the Source Monitor."),
         center);
     hint->setAlignment(Qt::AlignCenter);
     hint->setStyleSheet(QStringLiteral("color: #888; font-size: 14px;"));
@@ -62,17 +63,19 @@ void MainWindow::buildDocks()
     m_effectsDock = new PlaceholderDock(QStringLiteral("Effect Controls"),
                                         QStringLiteral("Clip effects and keyframes"), this);
 
+    m_sourceMonitor = new SourceMonitorWidget(m_sourceDock);
+    m_sourceDock->setWidget(m_sourceMonitor);
+
     addDockWidget(Qt::LeftDockWidgetArea, m_binDock);
     addDockWidget(Qt::RightDockWidgetArea, m_sourceDock);
     splitDockWidget(m_sourceDock, m_programDock, Qt::Horizontal);
     addDockWidget(Qt::BottomDockWidgetArea, m_timelineDock);
     addDockWidget(Qt::RightDockWidgetArea, m_effectsDock);
 
-    // Premiere-ish starting layout: bin left, monitors top-right, effects under
-    // program, timeline bottom spanning.
     splitDockWidget(m_programDock, m_effectsDock, Qt::Vertical);
     resizeDocks({m_binDock}, {280}, Qt::Horizontal);
     resizeDocks({m_timelineDock}, {260}, Qt::Vertical);
+    resizeDocks({m_sourceDock}, {520}, Qt::Horizontal);
 }
 
 void MainWindow::buildStatusBar()
@@ -99,15 +102,25 @@ void MainWindow::onOpenMedia()
         return;
     }
 
+    m_statusLabel->setText(QStringLiteral("Probing…"));
     const MediaProbeResult result = MediaProbe::probe(path);
-    m_statusLabel->setText(result.summary);
-
     if (!result.ok) {
+        m_statusLabel->setText(result.summary);
         QMessageBox::warning(this, QStringLiteral("Probe failed"), result.summary);
         return;
     }
 
-    QMessageBox::information(this, QStringLiteral("Media probe"), result.detail);
+    if (!result.info.hasVideo()) {
+        m_statusLabel->setText(QStringLiteral("No video stream: %1").arg(result.summary));
+        QMessageBox::information(this, QStringLiteral("Open Media"),
+                                 QStringLiteral("Phase 1 Source Monitor needs a video stream.\n\n%1")
+                                     .arg(result.detail));
+        return;
+    }
+
+    m_statusLabel->setText(QStringLiteral("Loading into Source Monitor…"));
+    m_sourceMonitor->loadMedia(result.info);
+    m_statusLabel->setText(result.info.summary());
 }
 
 void MainWindow::onAbout()
@@ -117,7 +130,7 @@ void MainWindow::onAbout()
         QStringLiteral("About vibe-prem-video"),
         QStringLiteral(
             "<b>vibe-prem-video</b> 0.1.0<br>"
-            "Windows NLE shell — Phase 0<br><br>"
+            "Windows NLE shell — Phase 1 (Media I/O)<br><br>"
             "C++20 · Qt 6 · FFmpeg · Direct3D 11 (later)"));
 }
 

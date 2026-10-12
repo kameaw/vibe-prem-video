@@ -7,6 +7,7 @@ class QLabel;
 namespace vibe {
 
 class PlaceholderDock;
+class SourceMonitorWidget;
 
 class MainWindow final : public QMainWindow
 {
@@ -29,6 +30,7 @@ private:
     PlaceholderDock* m_programDock = nullptr;
     PlaceholderDock* m_timelineDock = nullptr;
     PlaceholderDock* m_effectsDock = nullptr;
+    SourceMonitorWidget* m_sourceMonitor = nullptr;
     QLabel* m_statusLabel = nullptr;
 };
 

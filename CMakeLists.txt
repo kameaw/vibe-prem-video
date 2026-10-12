@@ -18,26 +18,40 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# Qt 6 — set CMAKE_PREFIX_PATH to your Qt kit, e.g.:
-#   -DCMAKE_PREFIX_PATH=C:/Qt/6.7.2/msvc2022_64
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-# FFmpeg — optional at configure time so the UI shell can build first.
-# Provide FFMPEG_ROOT pointing at a Windows shared/dev build, e.g.:
-#   -DFFMPEG_ROOT=C:/ffmpeg
-option(VIBE_ENABLE_FFMPEG "Link FFmpeg and enable media probe" ON)
+option(VIBE_ENABLE_FFMPEG "Link FFmpeg and enable media I/O" ON)
 
 set(VIBE_SOURCES
     src/app/main.cpp
     src/app/MainWindow.cpp
-    src/ui/PlaceholderDock.cpp
+    src/media/MediaInfo.cpp
     src/media/MediaProbe.cpp
+    src/media/FrameCache.cpp
+    src/media/VideoDecoder.cpp
+    src/media/AudioPeaks.cpp
+    src/media/ThumbnailStrip.cpp
+    src/media/PcmAudio.cpp
+    src/media/WinMmPlayer.cpp
+    src/ui/PlaceholderDock.cpp
+    src/ui/WaveformWidget.cpp
+    src/ui/SourceMonitorWidget.cpp
 )
 
 set(VIBE_HEADERS
+    src/core/Rational.h
     src/app/MainWindow.h
-    src/ui/PlaceholderDock.h
+    src/media/MediaInfo.h
     src/media/MediaProbe.h
+    src/media/FrameCache.h
+    src/media/VideoDecoder.h
+    src/media/AudioPeaks.h
+    src/media/ThumbnailStrip.h
+    src/media/PcmAudio.h
+    src/media/WinMmPlayer.h
+    src/ui/PlaceholderDock.h
+    src/ui/WaveformWidget.h
+    src/ui/SourceMonitorWidget.h
 )
 
 add_executable(vibe-prem-video WIN32
@@ -53,21 +67,27 @@ target_link_libraries(vibe-prem-video PRIVATE
     Qt6::Widgets
 )
 
+if(WIN32)
+    target_link_libraries(vibe-prem-video PRIVATE winmm)
+endif()
+
 set(VIBE_HAS_FFMPEG FALSE)
 
 if(VIBE_ENABLE_FFMPEG)
-    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-    find_package(FFmpeg COMPONENTS avformat avcodec avutil)
+    # Prefer our module over Qt's FindFFmpeg.cmake (which can return bare lib names).
+    list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+    find_package(FFmpeg MODULE COMPONENTS avformat avcodec avutil swscale swresample)
 
     if(FFmpeg_FOUND)
         set(VIBE_HAS_FFMPEG TRUE)
         target_compile_definitions(vibe-prem-video PRIVATE VIBE_HAS_FFMPEG=1)
         target_include_directories(vibe-prem-video PRIVATE ${FFMPEG_INCLUDE_DIRS})
         target_link_libraries(vibe-prem-video PRIVATE ${FFMPEG_LIBRARIES})
-        message(STATUS "FFmpeg found — media probe enabled")
+        message(STATUS "FFmpeg include: ${FFMPEG_INCLUDE_DIRS}")
+        message(STATUS "FFmpeg libs: ${FFMPEG_LIBRARIES}")
+        message(STATUS "FFmpeg found — media I/O enabled")
 
         if(WIN32)
-            # Prefer bin/ next to include/ (Gyan shared layout).
             get_filename_component(_ffmpeg_root "${FFMPEG_INCLUDE_DIRS}" DIRECTORY)
             set(_ffmpeg_bin "${_ffmpeg_root}/bin")
             if(EXISTS "${_ffmpeg_bin}")
@@ -77,14 +97,14 @@ if(VIBE_ENABLE_FFMPEG)
                         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
                             "${_dll}"
                             "$<TARGET_FILE_DIR:vibe-prem-video>"
-                        COMMENT "Copy FFmpeg DLL $(FILENAME)"
+                        COMMENT "Copy FFmpeg DLL"
                     )
                 endforeach()
             endif()
         endif()
     else()
         target_compile_definitions(vibe-prem-video PRIVATE VIBE_HAS_FFMPEG=0)
-        message(WARNING "FFmpeg not found — UI builds, probe logs a stub. Set FFMPEG_ROOT.")
+        message(WARNING "FFmpeg not found — UI builds, media I/O disabled. Set FFMPEG_ROOT.")
     endif()
 else()
     target_compile_definitions(vibe-prem-video PRIVATE VIBE_HAS_FFMPEG=0)
@@ -96,7 +116,6 @@ else()
     target_compile_options(vibe-prem-video PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# Copy Qt runtime on Windows when using shared Qt (dev convenience).
 if(WIN32)
     get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
     get_filename_component(_qt_bin_dir "${_qt_qmake}" DIRECTORY)

@@ -9,7 +9,7 @@
 | Стадия | Название                      | Статус     |
 | ------ | ----------------------------- | ---------- |
 | 0      | Фундамент / UI shell          | **готово** |
-| 1      | Media I/O                     | не начато  |
+| 1      | Media I/O                     | **готово** |
 | 2      | Project model + Timeline data | не начато  |
 | 3      | Editing tools                 | не начато  |
 | 4      | Program Monitor + Compositor  | не начато  |
@@ -20,8 +20,6 @@
 
 
 ---
-
-
 
 ## Phase 0 — Фундамент
 
@@ -39,24 +37,20 @@
 
 ---
 
-
-
 ## Phase 1 — Media I/O
 
 Цель: читать кадры и звук с seek, кэш, превью одного клипа.
 
 - [ ] Probe → структурированный `MediaInfo` в модели
-- [ ] Video decode + seek по PTS
-- [ ] Thumbnail strip для клипа
-- [ ] Audio decode + waveform peaks
-- [ ] Source Monitor: play / pause / seek одного файла
-- [ ] Memory / disk frame cache
+- [x] Video decode + seek по PTS
+- [x] Thumbnail strip для клипа
+- [x] Audio decode + waveform peaks
+- [x] Source Monitor: play / pause / seek одного файла
+- [x] Memory / disk frame cache
 
 **Демо:** открыл клип в Source Monitor, крутишь playhead, видишь картинку и звук.
 
 ---
-
-
 
 ## Phase 2 — Project model + Timeline data
 
@@ -72,8 +66,6 @@
 **Демо:** кинул клип на таймлайн, сохранил проект, открыл снова.
 
 ---
-
-
 
 ## Phase 3 — Editing tools
 
@@ -92,8 +84,6 @@
 
 ---
 
-
-
 ## Phase 4 — Program Monitor + Compositor
 
 Цель: realtime preview всей sequence.
@@ -109,8 +99,6 @@
 
 ---
 
-
-
 ## Phase 5 — Effects & Transitions MVP
 
 Цель: стек эффектов и простой переход.
@@ -125,8 +113,6 @@
 
 ---
 
-
-
 ## Phase 6 — Color, Titles, Audio polish
 
 Цель: «выглядит как настоящий редактор».
@@ -139,8 +125,6 @@
 **Демо:** титр + лёгкий грейд + нормальный звук на экспорте-заглушке (или preview).
 
 ---
-
-
 
 ## Phase 7 — Export
 
@@ -155,8 +139,6 @@
 **Демо:** Export → смотришь mp4 в плеере.
 
 ---
-
-
 
 ## Phase 8 — Premiere depth
 
@@ -174,8 +156,6 @@
 **Демо:** каждый пункт — отдельный milestone.
 
 ---
-
-
 
 ## Как обновлять
 
